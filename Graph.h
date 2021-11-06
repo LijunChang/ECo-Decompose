@@ -43,24 +43,25 @@ public:
 	void read_graph_binary() ;
 
 	// compute k-edge connected components
-	void k_edge_connected_component(ui K, bool print) ;
+	void k_edge_connected_component(ui K, std::string output_file) ;
 	// compute k-edge connected components in a space-effective manner
-	void k_edge_connected_component_space(ui K, bool print) ;
+	void k_edge_connected_component_space(ui K, std::string output_file) ;
 	// edge-connectivity-based graph decomposition, divide and conquer
-	void edge_connectivity_decomposition_DCs(bool mspt, bool print) ;
+	void edge_connectivity_decomposition_DCs(bool mspt, std::string output_file, std::string eccsizes_file) ;
 	// edge-connectivity-based graph decomposition, bottom-up (large to small value), core-optimized
-	void edge_connectivity_decomposition_BUso(bool mspt, bool print) ;
+	void edge_connectivity_decomposition_BUso(bool mspt, std::string output_file, std::string eccsizes_file) ;
 	// edge-connectivity-based graph decomposition, bottom-up (large to small value)
-	void edge_connectivity_decomposition_BUs(bool mspt, bool print) ;
+	void edge_connectivity_decomposition_BUs(bool mspt, std::string output_file, std::string eccsizes_file) ;
 	// edge-connectivity-based graph decomposition, top-down (small to large value)
-	void edge_connectivity_decomposition_TDs(bool mspt, bool print) ;
+	void edge_connectivity_decomposition_TDs(bool mspt, std::string output_file, std::string eccsizes_file) ;
 
 private:
+	void to_hierarchy_tree(std::vector<std::pair<std::pair<ui,ui>, ui> > vpp, std::string output_file, std::string eccsizes_file) ;
 	// core decomposition without invoking data structures
 	ui core_decomposition(ui *peel_sequence, ui *core) ;
 	// k-core based pruning
 	void k_core_prune(ui K, ui *Q, ui Q_n, char *computed, ui *degree, ui *pend) ;
-	void print_kecc(ui K, ui c_n, ui *cstart, ui *ids) ;
+	void print_kecc(std::string output_file, ui K, ui c_n, ui *cstart, ui *ids) ;
 
 	void get_degrees(const ui K, const ui *active_ids, const ui active_n, ui *degree, UnionFind *UF, const ui *representative, const ui *pend_global, ui *pend, const ui *core, ui *adj_next_global, ui *adj_next) ;
 
@@ -70,7 +71,7 @@ private:
 	ui k_core_prune(const ui K, const ui *pend, ui *Q, ui Q_n, char *computed, ui *degree, UnionFind *UF, const ui *representative, const ui *adj_next) ;
 	ui initialize_pgraph(const ui s, ui *pend, ui *Q, char *vis, char *computed, UnionFind *UF, const ui *representative, ui *adj_next, ui *pend_local, UnionFind *UF_local, ui *representative_local, ui *sv_next_local, ui *sv_last_local, ui *adj_next_local, ui *adj_last_local) ;
 	ui remove_inter_edges(const ui K, const ui c_n, const ui new_cn, const ui *cstart, const ui *ids, ui *pend, ui *Q, char *computed, ui *degree, UnionFind *UF_local, const ui *representative_local, ui *adj_next) ;
-	void print_eco_decomposition(const char *alg, std::vector<std::pair<std::pair<ui,ui>, ui> > &vpp, bool mspt) ;
+	void print_edge_connectivities(const char *alg, std::vector<std::pair<std::pair<ui,ui>, ui> > &vpp, bool mspt) ;
 	void print_active_graph(const ui *active_ids, const ui active_n, const ui *pend, const ui *adj_next, UnionFind *UF, const ui *representative) ;
 	void print_keccs(ui level, ui K, ui c_n, ui *cstart, ui *ids) ;
 

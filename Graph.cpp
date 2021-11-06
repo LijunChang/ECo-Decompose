@@ -31,17 +31,12 @@ Graph::~Graph() {
 	}
 }
 
-void Graph::edge_connectivity_decomposition_TDs(bool mspt, bool print) {
-#ifdef NDEBUG
-	printf("*** eco_decomposition_TDs (Release): %s ***\n", dir.c_str());
-#else
-	printf("*** eco_decomposition_TDs (Debug): %s ***\n", dir.c_str());
-#endif
-
-	read_graph_binary();
-
-	Timer timer;
-
+void Graph::edge_connectivity_decomposition_TDs(bool mspt, string output_file, string eccsizes_file) {
+//#ifdef NDEBUG
+//	printf("*** eco_decomposition_TDs (Release): %s ***\n", dir.c_str());
+//#else
+//	printf("*** eco_decomposition_TDs (Debug): %s ***\n", dir.c_str());
+//#endif
 	UnionFind *UF = new UnionFind(n); // represent contracted version of the out-most graph
 	UF->init(n);
 	ui *representative = new ui[n];
@@ -64,6 +59,26 @@ void Graph::edge_connectivity_decomposition_TDs(bool mspt, bool print) {
 	char *vis = new char[n];
 	memset(vis, 0, sizeof(char)*n);
 
+	if(!output_file.empty()) {
+		printf("Hierarchy tree for eco-decompose-tds is not implemented yet! Currently this only computes the steiner connectivities\n");
+	}
+
+	vector<pair<ui,ui> > eccsizes;
+	if(!eccsizes_file.empty()) {
+		for(ui i = 0;i < n;i ++) if(!vis[i]) {
+			ui Q_n = 1;
+			Q[0] = i; vis[i] = 1;
+			for(ui ii = 0;ii < Q_n;ii ++) {
+				ui u = Q[ii];
+				for(ui j = pstart[u];j < pstart[u+1];j ++) if(!vis[edges[j]]) {
+					Q[Q_n++] = edges[j]; vis[edges[j]] = 1;
+				}
+			}
+			if(Q_n > 1) eccsizes.pb(mp(1, Q_n));
+		}
+		memset(vis, 0, sizeof(char)*n);
+	}
+
 	UnionFind *UF_local = new UnionFind(n);
 	UF_local->init(0);
 	ui *representative_local = new ui[n];
@@ -78,7 +93,7 @@ void Graph::edge_connectivity_decomposition_TDs(bool mspt, bool print) {
 	UnionFind *UF_spt = nullptr;
 
 	if(mspt) {
-		printf("Minimum SPT is not implemented yet!\n");
+		printf("Minimum SPT is not implemented yet! But you still should set mspt to be true for memory consideration!\n");
 	}
 	else vpp.reserve(m/2);
 
@@ -98,6 +113,9 @@ void Graph::edge_connectivity_decomposition_TDs(bool mspt, bool print) {
 		// only change adj_next_buf[level+1], pend_local, pend, but not adj_next_buf[level]
 		ui c_n = kECC(K, pend, active_ids, active_n, cstart, ids, degree, Q, vis, computed, pend_local, UF, representative, UF_local, representative_local, adj_next, adj_next_local, adj_last_local, sv_next_local, sv_last_local, keys, heap);
 		assert(cstart[c_n] == active_n);
+		if(!eccsizes_file.empty()) {
+			for(ui i = 0;i < c_n;i ++) if(cstart[i+1] > cstart[i]+1) eccsizes.pb(mp(K, cstart[i+1]-cstart[i]));
+		}
 
 #ifndef NDEBUG
 		//printf("\n");
@@ -116,8 +134,6 @@ void Graph::edge_connectivity_decomposition_TDs(bool mspt, bool print) {
 		}
 		active_n = new_active_n;
 	}
-
-	if(print) print_eco_decomposition("eco-tds", vpp, mspt);
 
 	if(UF_spt != nullptr) delete UF_spt;
 
@@ -150,21 +166,23 @@ void Graph::edge_connectivity_decomposition_TDs(bool mspt, bool print) {
 	delete heap;
 	delete[] active_ids;
 
-	printf("\tTotal processing time excluding I/O: %s (microseconds)\n\n", Utility::integer_to_string(timer.elapsed()).c_str());
+	if(!eccsizes_file.empty()) {
+		sort(eccsizes.begin(), eccsizes.end());
+		printf("*\tWriting ecc_sizes into file: %s\n", eccsizes_file.c_str());
+		FILE *fout = Utility::open_file(eccsizes_file.c_str(), "w");
+		for(ui i = 0;i < eccsizes.size();i ++) fprintf(fout, "%u %u\n", eccsizes[i].first, eccsizes[i].second);
+		fclose(fout);
+	}
+
+	// print_edge_connectivities("eco-tds", vpp, mspt);
 }
 
-
-void Graph::edge_connectivity_decomposition_BUs(bool mspt, bool print) {
-#ifdef NDEBUG
-	printf("*** eco_decomposition_BUs (Release): %s ***\n", dir.c_str());
-#else
-	printf("*** eco_decomposition_BUs (Debug): %s ***\n", dir.c_str());
-#endif
-
-	read_graph_binary();
-
-	Timer timer;
-
+void Graph::edge_connectivity_decomposition_BUs(bool mspt, string output_file, string eccsizes_file) {
+//#ifdef NDEBUG
+//	printf("*** eco_decomposition_BUs (Release): %s ***\n", dir.c_str());
+//#else
+//	printf("*** eco_decomposition_BUs (Debug): %s ***\n", dir.c_str());
+//#endif
 	ui *peel_sequence = new ui[n];
 	ui *core = new ui[n];
 	ui max_core = core_decomposition(peel_sequence, core);
@@ -287,7 +305,189 @@ void Graph::edge_connectivity_decomposition_BUs(bool mspt, bool print) {
 		active_n = cnt;
 	}
 
-	if(print) print_eco_decomposition("eco-bus", vpp, mspt);
+	if(UF_spt != nullptr) delete UF_spt;
+
+	delete[] keys;
+	delete[] adj_next_local;
+	delete[] adj_last_local;
+	delete[] sv_next_local;
+	delete[] sv_last_local;
+	delete[] representative_local;
+	delete UF_local;
+	delete[] Q;
+	delete[] vis;
+
+	delete[] adj_next_global;
+	delete[] adj_next;
+	delete[] degree;
+
+	delete[] ids;
+	delete[] cstart;
+
+	delete[] computed;
+
+	delete UF;
+	delete[] representative;
+
+	delete[] pend_local;
+	delete[] pend;
+	delete[] pend_global;
+
+	delete heap;
+	delete[] active_ids;
+	delete[] peel_sequence;
+	delete[] core;
+
+	//print_ege_connectivities("eco-bus", vpp, mspt);
+}
+
+void Graph::edge_connectivity_decomposition_BUso(bool mspt, string output_file, string eccsizes_file) {
+//#ifdef NDEBUG
+//	printf("*** eco_decomposition_BUso (Release): %s ***\n", dir.c_str());
+//#else
+//	printf("*** eco_decomposition_BUso (Debug): %s ***\n", dir.c_str());
+//#endif
+	ui *peel_sequence = new ui[n];
+	ui *core = new ui[n];
+	ui max_core = core_decomposition(peel_sequence, core);
+	printf("*\tmax_core: %u\n", max_core);
+
+	ListLinearHeap *heap = new ListLinearHeap(n, max_core);
+
+	// put all neigbors with no smaller core number at the front, followed by other neighbors in decreasing core number order
+	for(ui i = 0;i < n;i ++) {
+		ui pend = pstart[i+1];
+		for(ui j = pstart[i];j < pend;) {
+			if(core[edges[j]] < core[i]) swap(edges[j], edges[-- pend]);
+			else ++ j;
+		}
+		heap->init(0, core[i], nullptr, nullptr);
+		for(ui j = pend;j < pstart[i+1];j ++) heap->insert(edges[j], core[edges[j]]);
+		ui key;
+		for(ui j = pend;j < pstart[i+1];j ++) heap->pop_max(edges[j], key);
+	}
+
+	ui *active_ids = new ui[n];
+	ui active_n = 0, current_pos = n;
+
+	ui *pend_global = new ui[n];
+	ui *pend = new ui[n];
+	ui *pend_local = new ui[n];
+	for(ui i = 0;i < n;i ++) pend_global[i] = pstart[i+1];
+
+	UnionFind *UF = new UnionFind(n);
+	UF->init(n);
+	ui *representative = new ui[n];
+	for(ui i = 0;i < n;i ++) representative[i] = i;
+
+	char *computed = new char[n];
+	memset(computed, 0, sizeof(char)*n);
+
+	ui *ids = new ui[n];
+	ui *cstart = new ui[n];
+
+	ui *degree = new ui[n];
+	ui *adj_next_global = new ui[n];
+	ui *adj_next = new ui[n];
+	ui *Q = new ui[n];
+	char *vis = new char[n];
+	memset(vis, 0, sizeof(char)*n);
+
+	UnionFind *UF_local = new UnionFind(n);
+	UF_local->init(0);
+	ui *representative_local = new ui[n];
+
+	ui *keys = new ui[n];
+	ui *adj_next_local = new ui[n];
+	ui *adj_last_local = new ui[n];
+	ui *sv_next_local = new ui[n];
+	ui *sv_last_local = new ui[n];
+
+	vector<pair<pair<ui,ui>, ui> > vpp;
+	UnionFind *UF_spt = nullptr;
+
+	if(mspt) {
+		vpp.reserve(n);
+		UF_spt = new UnionFind(n);
+		UF_spt->init(n);
+	}
+	else vpp.reserve(m/2);
+
+	for(ui i = 0;i < n;i ++) adj_next_global[i] = i;
+
+	for(ui K = max_core;K >= 1;K --) {
+#ifndef NDEBUG
+		printf("********************\n");
+		printf("processing %u\n", K);
+#endif
+		ui cnt = 0;
+		for(ui j = 0;j < active_n;j ++) if(representative[UF->UF_find(active_ids[j])] == active_ids[j]) {
+			active_ids[cnt ++] = active_ids[j];
+		}
+		active_n = cnt;
+
+		while(current_pos > 0&&core[peel_sequence[current_pos-1]] >= K) {
+			-- current_pos;
+			active_ids[active_n ++] = peel_sequence[current_pos];
+		}
+
+		get_degrees(K, active_ids, active_n, degree, UF, representative, pend_global, pend, core, adj_next_global, adj_next);
+#ifndef NDEBUG
+		print_active_graph(active_ids, active_n, pend, adj_next, UF, representative);
+#endif
+		// only change adj_next_buf[level+1], pend_local, pend, but not adj_next_buf[level]
+		ui c_n = kECC(K, pend, active_ids, active_n, cstart, ids, degree, Q, vis, computed, pend_local, UF, representative, UF_local, representative_local, adj_next, adj_next_local, adj_last_local, sv_next_local, sv_last_local, keys, heap);
+		assert(cstart[c_n] == active_n);
+
+#ifndef NDEBUG
+		//printf("\n");
+		print_keccs(1, K, c_n, cstart, ids);
+#endif
+
+		// use pend and adj_next to get the edges
+
+		// assign K to edges
+		for(ui j = cstart[0];j < cstart[c_n];j ++) {
+			ui u = ids[j];
+			ui tu = u;
+			while(true) {
+				for(ui k = pstart[tu];k < pend[tu];k ++) if(edges[k] > tu) {
+					if(!mspt) {
+						vpp.pb(make_pair(make_pair(tu, edges[k]), K));
+#ifndef NDEBUG
+						//printf("computed %u %u %u\n", tu, edges[k], M);
+#endif
+					}
+					else if(UF_spt->UF_find(tu) != UF_spt->UF_find(edges[k])) {
+						UF_spt->UF_union(tu, edges[k]);
+						vpp.pb(make_pair(make_pair(tu, edges[k]), K));
+					}
+				}
+				pstart[tu] = pend[tu];
+
+				if(adj_next[tu] == tu) break;
+				tu = adj_next[tu];
+			}
+		}
+
+		// contract each M-edge connected component into a supervertex
+		for(ui i = 0;i < cstart[c_n];i ++) {
+			ui u = ids[i];
+			ui tu = u;
+			while(adj_next_global[tu] != tu) tu = adj_next_global[tu];
+			adj_last_local[u] = tu;
+		}
+		for(ui i = 0;i < c_n;i ++) {
+			ui u = ids[cstart[i]];
+			representative[UF->UF_find(u)] = u;
+			for(ui j = cstart[i]+1;j < cstart[i+1];j ++) {
+				representative[UF->UF_union(u, ids[j])] = u;
+				//printf("contracted (%u,%u)\n", u, ids[j]);
+				adj_next_global[adj_last_local[u]] = ids[j];
+				adj_last_local[u] = adj_last_local[ids[j]];
+			}
+		}
+	}
 
 	if(UF_spt != nullptr) delete UF_spt;
 
@@ -322,15 +522,20 @@ void Graph::edge_connectivity_decomposition_BUs(bool mspt, bool print) {
 	delete[] peel_sequence;
 	delete[] core;
 
-	printf("\tTotal processing time excluding I/O: %s (microseconds)\n\n", Utility::integer_to_string(timer.elapsed()).c_str());
+	for(ui i = 1;i < vpp.size();i ++) if(vpp[i].second > vpp[i-1].second) printf("WA in BUso\n");
+	printf("*\tmax_k: %u\n", vpp[0].second);
+	to_hierarchy_tree(vpp, output_file, eccsizes_file);
+
+	// print_edge_connectivities("eco-buso", vpp, mspt);
 }
 
-void Graph::edge_connectivity_decomposition_DCs(bool mspt, bool print) {
+void Graph::edge_connectivity_decomposition_DCs(bool mspt, string output_file, string eccsizes_file) {
 //#ifdef NDEBUG
 //	printf("*** eco_decomposition_dcs (Release): %s ***\n", dir.c_str());
 //#else
 //	printf("*** eco_decomposition_dcs (Debug): %s ***\n", dir.c_str());
 //#endif
+	if(!mspt) printf("!!! For memory consideration, mspt should be set to true\n");
 
 	ui *Q = new ui[n];
 	ui *active_component = new ui[n];
@@ -412,6 +617,8 @@ void Graph::edge_connectivity_decomposition_DCs(bool mspt, bool print) {
 
 	vector<pair<ui,ui> > contractions;
 	ui current_pos[max_level];
+
+	ui max_k = 0;
 
 	while(!working_stack.empty()) {
 		ui s = representative[UF->UF_find(working_stack.top().vertex)], parent_cid = working_stack.top().parent_cid;
@@ -495,8 +702,9 @@ void Graph::edge_connectivity_decomposition_DCs(bool mspt, bool print) {
 		}
 #endif
 
-		printf("%d %d %d\n", L, M, H);
+		//printf("%d %d %d\n", L, M, H);
 		if(M == H) {
+			if(M > max_k) max_k = M;
 			// use pend and adj_next_buf[level+1] to get the edges
 			ui *adj_next = adj_next_buf[level+1];
 
@@ -643,22 +851,21 @@ void Graph::edge_connectivity_decomposition_DCs(bool mspt, bool print) {
 				node.vertex = u; node.parent_cid = cid; node.L = M+1; node.H = H; node.level = level+1;
 				if(cstart[i+1] == cstart[i]+1) node.level = max_level;
 				working_stack.push(node);
-				printf("\tpush %d %d\n", M+1, H);
+				//printf("\tpush %d %d\n", M+1, H);
 			}
 
 			if(pos != c_n) {
 				Stack_node node;
 				node.vertex = ids[cstart[pos]]; node.parent_cid = cid; node.L = M+1; node.H = H; node.level = level+1;
 				if(cstart[pos+1] == cstart[pos]+1) node.level = max_level;
-				printf("\tpush %d %d\n", M+1, H);
+				//printf("\tpush %d %d\n", M+1, H);
 				working_stack.push(node);
 			}
 
 			current_pos[level+1] = contractions.size();
 		}
 	}
-
-	if(print) print_eco_decomposition("eco-dcs", vpp, mspt);
+	printf("*\tmax_k: %u\n", max_k);
 
 	if(UF_spt != nullptr) delete UF_spt;
 
@@ -694,9 +901,13 @@ void Graph::edge_connectivity_decomposition_DCs(bool mspt, bool print) {
 	delete[] vis;
 	delete[] Q;
 	delete[] active_component;
+
+	to_hierarchy_tree(vpp, output_file, eccsizes_file);
+
+	// print_edge_connectivities("eco-dcs", vpp, mspt);
 }
 
-void Graph::k_edge_connected_component(ui K, bool print) {
+void Graph::k_edge_connected_component(ui K, string output_file) {
 //#ifdef NDEBUG
 //	printf("*** k_edge_connected_component (Release): %s, %u ***\n", dir.c_str(), K);
 //#else
@@ -773,7 +984,7 @@ void Graph::k_edge_connected_component(ui K, bool print) {
 		else remove_inter_edges(K, c_n, new_cn, cstart, ids, keys, pend, Q, computed, degree); // use array keys for component id
 	}
 
-	if(print) print_kecc(K, c_n, cstart, ids);
+	if(!output_file.empty()) print_kecc(output_file, K, c_n, cstart, ids);
 
 	delete[] keys;
 	delete heap;
@@ -790,7 +1001,7 @@ void Graph::k_edge_connected_component(ui K, bool print) {
 	delete[] pend;
 }
 
-void Graph::k_edge_connected_component_space(ui K, bool print) {
+void Graph::k_edge_connected_component_space(ui K, string output_file) {
 //#ifdef NDEBUG
 //	printf("*** k_edge_connected_component_space (Release): %s, %u ***\n", dir.c_str(), K);
 //#else
@@ -858,7 +1069,7 @@ void Graph::k_edge_connected_component_space(ui K, bool print) {
 	//for(ui i = 0;i < c_n;i ++) if(cstart[i+1] - cstart[i] > max_cc) max_cc = cstart[i+1]-cstart[i];
 	//printf("maximum 2ecc size: %s\n", Utility::integer_to_string(max_cc).c_str());
 
-	if(print) print_kecc(K, c_n, cstart, ids);
+	if(!output_file.empty()) print_kecc(output_file, K, c_n, cstart, ids);
 
 	delete[] pend_local;
 	delete[] vis;
@@ -881,6 +1092,156 @@ void Graph::k_edge_connected_component_space(ui K, bool print) {
 }
 
 // private member functions
+
+void Graph::to_hierarchy_tree(vector<pair<pair<ui,ui>, ui> > vpp, string output_file, string eccsizes_file) {
+	UnionFind *UF = new UnionFind(n);
+	UF->init(n);
+
+	int *vertex_to_eccnode = new int[n];
+	for(ui i = 0;i < n;i ++) vertex_to_eccnode[i] = -1;
+
+	ui ecc_n = 0;
+	ui *parent = new ui[n];
+	ui *weight = new ui[n];
+	ui *representative_to_root = new ui[n];
+
+	for(ui i = 0;i < vpp.size();i ++) {
+		ui u = vpp[i].first.first, v = vpp[i].first.second, sc = vpp[i].second;
+		if(vertex_to_eccnode[u] == -1&&vertex_to_eccnode[v] == -1) {
+			parent[ecc_n] = ecc_n; representative_to_root[ecc_n] = ecc_n;
+			vertex_to_eccnode[u] = vertex_to_eccnode[v] = ecc_n;
+			weight[ecc_n] = sc;
+			++ ecc_n;
+		}
+		else if(vertex_to_eccnode[u] == -1||vertex_to_eccnode[v] == -1) {
+			if(vertex_to_eccnode[u] == -1) swap(u,v);
+			ui ru = UF->UF_find(vertex_to_eccnode[u]);
+			ui rru = representative_to_root[ru];
+			if(weight[rru] != sc) {
+				if(weight[rru] < sc) printf("WA in to_hierarchy_tree\n");
+				parent[rru] = parent[ecc_n] = ecc_n;
+				vertex_to_eccnode[v] = ecc_n;
+				weight[ecc_n] = sc;
+				ui new_r = UF->UF_union(ru, ecc_n);
+				representative_to_root[new_r] = ecc_n;
+				++ ecc_n;
+			}
+			else vertex_to_eccnode[v] = rru;
+		}
+		else {
+			ui ru = UF->UF_find(vertex_to_eccnode[u]);
+			ui rv = UF->UF_find(vertex_to_eccnode[v]);
+			ui rru = representative_to_root[ru];
+			ui rrv = representative_to_root[rv];
+			if(ru == rv) {
+				if(weight[rru] != sc) printf("!!! Hit\n");
+				continue;
+			}
+			if(weight[rru] < sc||weight[rrv] < sc) printf("WA in to_hierarchy_tree\n");
+			if(weight[rru] == sc||weight[rrv] == sc) {
+				//if(weight[rru] == sc&&weight[rrv] == sc) printf("!!! Hit\n");
+				if(weight[rrv] == sc) { swap(u,v); swap(ru, rv); swap(rru, rrv); }
+				parent[rrv] = rru;
+				ui new_r = UF->UF_union(ru,rv);
+				representative_to_root[new_r] = rru;
+			}
+			else {
+				parent[rru] = parent[rrv] = parent[ecc_n] = ecc_n;
+				weight[ecc_n] = sc;
+				ui new_r = UF->UF_union(ru, rv);
+				new_r = UF->UF_union(new_r, ecc_n);
+				representative_to_root[new_r] = ecc_n;
+				++ ecc_n;
+			}
+		}
+	}
+	if(ecc_n > n) printf("WA in to_hierarchy_tree\n");
+
+	ui *stack = new ui[n];
+	ui stack_n = 0;
+	char *in_stack = new char[n];
+	memset(in_stack, 0, sizeof(char)*n);
+	int *first_vertex = new int[n];
+	for(ui i = 0;i < n;i ++) first_vertex[i] = -1;
+	ui *ecc_size = representative_to_root;
+	memset(ecc_size, 0, sizeof(ui)*n);
+	for(ui i = 0;i < n;i ++) {
+		if(vertex_to_eccnode[i] == -1) {
+			printf("!!! There are isolated vertices in the input graph, please remove them\n");
+			continue;
+		}
+		ui r = vertex_to_eccnode[i];
+		ui end = n;
+		if(first_vertex[r] != -1) ++ ecc_size[first_vertex[r]];
+		while(first_vertex[r] == -1) {
+			ui tr = r;
+			while(parent[r] != r&&weight[parent[r]] == weight[r]) r = parent[r];
+			first_vertex[tr] = r;
+
+			if(end == n) ++ ecc_size[r];
+
+			if(in_stack[r]) break;
+			in_stack[r] = 1;
+			stack[-- end] = r;
+
+			if(parent[r] == r) break;
+			r = parent[r];
+		}
+		while(end < n) stack[stack_n ++] = stack[end ++];
+	}
+	for(ui i = stack_n;i > 0;i --) {
+		ui u = stack[i-1];
+		ui r = parent[u];
+		if(r == u) continue;
+		ecc_size[first_vertex[r]] += ecc_size[u];
+	}
+
+	if(!eccsizes_file.empty()) {
+		vector<pair<ui,ui> > vp;
+		vp.reserve(stack_n);
+		for(ui i = 0;i < stack_n;i ++) {
+			ui pw = 0;
+			if(parent[stack[i]] != stack[i]) pw = weight[parent[stack[i]]];
+			for(ui j = pw+1;j <= weight[stack[i]];j ++) vp.pb(mp(j, ecc_size[stack[i]]));
+		}
+		sort(vp.begin(), vp.end());
+		printf("*\tWriting ecc_sizes into file: %s\n", eccsizes_file.c_str());
+		FILE *fout = Utility::open_file(eccsizes_file.c_str(), "w");
+		for(ui i = 0;i < vp.size();i ++) fprintf(fout, "%u %u\n", vp[i].first, vp[i].second);
+		fclose(fout);
+	}
+
+	if(!output_file.empty()) {
+		ui *id_map = representative_to_root;
+		for(ui i = 0;i < n;i ++) id_map[i] = -1;
+		for(ui i = 0;i < stack_n;i ++) id_map[stack[i]] = i;
+		printf("*\tWriting hierarchy_tree into file: %s\n", output_file.c_str());
+		FILE *fout = Utility::open_file(output_file.c_str(), "w");
+		fprintf(fout, "%u %u\n", n, stack_n);
+		for(ui i = 0;i < n;i ++) {
+			if(first_vertex[vertex_to_eccnode[i]] == -1) fprintf(fout, "-1\n");
+			else fprintf(fout, "%d\n", id_map[first_vertex[vertex_to_eccnode[i]]]);
+		}
+		for(ui i = 0;i < stack_n;i ++) {
+			ui u = stack[i];
+			int p = parent[u];
+			if(p == u) p = -1;
+			else p = id_map[first_vertex[p]];
+			fprintf(fout, "%u %u %d\n", id_map[u], weight[u], p);
+		}
+
+		fclose(fout);
+	}
+
+	delete[] stack;
+	delete[] first_vertex;
+	delete[] in_stack;
+	delete UF;
+	delete[] parent;
+	delete[] vertex_to_eccnode;
+	delete[] weight;
+	delete[] representative_to_root;
+}
 
 void Graph::get_degrees(ui K, const ui *active_ids, ui active_n, ui *degree, UnionFind *UF, const ui *representative, const ui *pend_global, ui *pend, const ui *core, ui *adj_next_global, ui *adj_next) {
 	for(ui i = 0;i < active_n;i ++) {
@@ -1710,11 +2071,11 @@ void Graph::print_active_graph(const ui *active_ids, const ui active_n, const ui
 	printf("\n");
 }
 
-void Graph::print_kecc(ui K, ui c_n, ui *cstart, ui *ids) {
-	ostringstream os;
-	os<<K<<"-ECCs.txt";
-	printf("Writing kECCS to file: %s\n", os.str().c_str());
-	FILE *fout = Utility::open_file(os.str().c_str(), "w");
+void Graph::print_kecc(string output_file, ui K, ui c_n, ui *cstart, ui *ids) {
+	//ostringstream os;
+	//os<<K<<"-ECCs.txt";
+	printf("Writing kECCS to file: %s\n", output_file.c_str());
+	FILE *fout = Utility::open_file(output_file.c_str(), "w");
 
 	for(ui i = 0;i < c_n;i ++) {
 		fprintf(fout, "%u-ECC %u of size %u:", K, i, cstart[i+1]-cstart[i]);
@@ -1726,16 +2087,15 @@ void Graph::print_kecc(ui K, ui c_n, ui *cstart, ui *ids) {
 	fclose(fout);
 }
 
-void Graph::print_eco_decomposition(const char *alg, vector<pair<pair<ui,ui>, ui> > &vpp, bool mspt) {
+void Graph::print_edge_connectivities(const char *alg, vector<pair<pair<ui,ui>, ui> > &vpp, bool mspt) {
 	ostringstream os;
 	if(mspt) os<<alg<<"-mspt.txt";
 	else os<<alg<<"-all.txt";
 	FILE *fout = Utility::open_file(os.str().c_str(), "w");
 
-	for(ui i = 1;i < vpp.size();i ++) if(vpp[i].second > vpp[i-1].second) printf("WA\n");
-
 	fprintf(fout, "u v sc\n");
-	//sort(vpp.begin(), vpp.end());
+	sort(vpp.begin(), vpp.end());
+	printf("*\tvpp has been sorted based on vertex ids!!!\n");
 	for(ui i = 0;i < vpp.size();i ++) fprintf(fout, "%u %u %u\n", vpp[i].first.first, vpp[i].first.second, vpp[i].second);
 
 	fclose(fout);
