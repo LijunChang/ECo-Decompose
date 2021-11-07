@@ -78,6 +78,7 @@ int main(int argc, char *argv[]) {
 	else if(strcmp(alg.c_str(), "eco-decompose-buso") == 0) graph->edge_connectivity_decomposition_BUso(true, output_file, eccsizes_file);
 	else if(strcmp(alg.c_str(), "eco-decompose-bus") == 0) graph->edge_connectivity_decomposition_BUs(true, output_file, eccsizes_file);
 	else if(strcmp(alg.c_str(), "eco-decompose-tds") == 0) graph->edge_connectivity_decomposition_TDs(true, output_file, eccsizes_file);
+	else if(strcmp(alg.c_str(), "core-decompose") == 0) graph->core_decomposition(output_file, eccsizes_file);
 	else {
 		printf("!!! The algorithm name is not reconganized! Exit!!!\n");
 		//print_usage();

@@ -1091,6 +1091,44 @@ void Graph::k_edge_connected_component_space(ui K, string output_file) {
 	delete[] Q;
 }
 
+void Graph::core_decomposition(string output_file, string eccsizes_file) {
+	ui *peel_sequence = new ui[n];
+	ui *core = new ui[n];
+	ui max_core = core_decomposition(peel_sequence, core);
+	printf("*\tmax_core: %u\n", max_core);
+
+	UnionFind *uf = new UnionFind(n);
+	uf->init(n);
+
+	vector<pair<pair<ui,ui>, ui> > vpp;
+
+	char *vis = new char[n];
+	memset(vis, 0, sizeof(char)*n);
+	for(ui i = n;i > 0;i --) {
+		ui u = peel_sequence[i-1];
+		for(ui j = pstart[u];j < pstart[u+1];j ++) if(vis[edges[j]]) {
+			ui v = edges[j];
+			ui ru = uf->UF_find(u);
+			ui rv = uf->UF_find(v);
+
+			if(ru != rv) {
+				vpp.pb(make_pair(make_pair(u, v), core[u]));
+				uf->UF_union(ru, rv);
+			}
+		}
+		vis[u] = 1;
+	}
+
+	delete[] peel_sequence;
+	delete[] core;
+	delete uf;
+	delete[] vis;
+
+	for(ui i = 1;i < vpp.size();i ++) if(vpp[i].second > vpp[i-1].second) printf("WA in core_decomposition\n");
+	to_hierarchy_tree(vpp, output_file, eccsizes_file);
+}
+
+
 // private member functions
 
 void Graph::to_hierarchy_tree(vector<pair<pair<ui,ui>, ui> > vpp, string output_file, string eccsizes_file) {

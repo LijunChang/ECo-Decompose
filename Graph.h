@@ -55,6 +55,8 @@ public:
 	// edge-connectivity-based graph decomposition, top-down (small to large value)
 	void edge_connectivity_decomposition_TDs(bool mspt, std::string output_file, std::string eccsizes_file) ;
 
+	void core_decomposition(std::string output_file, std::string eccsizes_file) ;
+
 private:
 	void to_hierarchy_tree(std::vector<std::pair<std::pair<ui,ui>, ui> > vpp, std::string output_file, std::string eccsizes_file) ;
 	// core decomposition without invoking data structures
