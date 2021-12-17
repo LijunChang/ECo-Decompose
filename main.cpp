@@ -25,19 +25,25 @@ int main(int argc, char *argv[]) {
 	printf("!!! You may want to define NDEBUG in utilities/Defines.h to get better performance!\n");
 #endif
 	//printf("sizeof(unsigned int): %lu\n", sizeof(ui));
-	print_usage();
+	//print_usage();
 
 	OptionParser op("Allowed options");
 	auto help_option = op.add<Switch>("h", "help", "\'produce help message\'");
 	auto graph_option = op.add<Value<string>>("g", "graph", "\'path to input graph file\'");
-	auto alg_option = op.add<Value<string>>("a", "alg", "\'algorithm name\' (kecc | kecc-space | eco-decompose-dcs | eco-decompose-bus | eco-decompose-tds)");
-	auto k_option = op.add<Value<int>>("k", "k", "\'the value of k\'");
+	auto alg_option = op.add<Value<string>>("a", "alg", "\'algorithm name\' (kecc-space | eco-decompose-dcs)");
+	auto k_option = op.add<Value<int>>("k", "k", "\'the value of k for kecc-space\'");
 	auto output_option = op.add<Value<string>>("o", "output", "\'write the result into file\'");
 	auto eccsizes_option = op.add<Value<string>>("s", "eccsizes", "\'write the ecc_sizes into file\'");
 
 	op.parse(argc, argv);
 
-	if(help_option->is_set()) cout << op << endl;
+	if(help_option->is_set()||argc <= 1) {
+		cout << op << endl;
+		if(argc <= 1) {
+			print_usage();
+			return 0;
+		}
+	}
 	if(!graph_option->is_set()) {
 		printf("!!! Path to input graph file is not provided! Exit !!!\n");
 		return 0;
@@ -50,7 +56,7 @@ int main(int argc, char *argv[]) {
 	string alg = alg_option->value();
 	int k = 0;
 
-	if(strcmp(alg.c_str(), "kecc")==0 || strcmp(alg.c_str(), "kecc-space") == 0) {
+	if(strcmp(alg.c_str(), "kecc-space") == 0) {
 		if(!k_option->is_set()) {
 			printf("!!! The value of k is not provided for KECC computation! Exit !!!\n");
 			return 0;
@@ -72,13 +78,8 @@ int main(int argc, char *argv[]) {
 	graph->read_graph_binary();
 
 	Timer timer;
-	if(strcmp(alg.c_str(), "kecc") == 0) graph->k_edge_connected_component((ui)k, output_file);
-	else if(strcmp(alg.c_str(), "kecc-space") == 0) graph->k_edge_connected_component_space((ui)k, output_file);
+	if(strcmp(alg.c_str(), "kecc-space") == 0) graph->k_edge_connected_component_space((ui)k, output_file);
 	else if(strcmp(alg.c_str(), "eco-decompose-dcs") == 0) graph->edge_connectivity_decomposition_DCs(true, output_file, eccsizes_file);
-	else if(strcmp(alg.c_str(), "eco-decompose-buso") == 0) graph->edge_connectivity_decomposition_BUso(true, output_file, eccsizes_file);
-	else if(strcmp(alg.c_str(), "eco-decompose-bus") == 0) graph->edge_connectivity_decomposition_BUs(true, output_file, eccsizes_file);
-	else if(strcmp(alg.c_str(), "eco-decompose-tds") == 0) graph->edge_connectivity_decomposition_TDs(true, output_file, eccsizes_file);
-	else if(strcmp(alg.c_str(), "core-decompose") == 0) graph->core_decomposition(output_file, eccsizes_file);
 	else {
 		printf("!!! The algorithm name is not reconganized! Exit!!!\n");
 		//print_usage();
@@ -93,6 +94,6 @@ int main(int argc, char *argv[]) {
 }
 
 void print_usage() {
-	printf("Usage: ./eco_decompose -h -g path_to_graph -a kecc-space -k 3\n");
-	printf("or\t./eco_decompose -h -g path_to_graph -a eco-decompose-dcs\n");
+	printf("Example usage: ./eco_decompose -g path_to_graph -a kecc-space -k 3\n");
+	printf("or\t./eco_decompose -g path_to_graph -a eco-decompose-dcs\n");
 }

@@ -31,504 +31,6 @@ Graph::~Graph() {
 	}
 }
 
-void Graph::edge_connectivity_decomposition_TDs(bool mspt, string output_file, string eccsizes_file) {
-//#ifdef NDEBUG
-//	printf("*** eco_decomposition_TDs (Release): %s ***\n", dir.c_str());
-//#else
-//	printf("*** eco_decomposition_TDs (Debug): %s ***\n", dir.c_str());
-//#endif
-	UnionFind *UF = new UnionFind(n); // represent contracted version of the out-most graph
-	UF->init(n);
-	ui *representative = new ui[n];
-	for(ui i = 0;i < n;i ++) representative[i] = i;
-
-	ui *pend_global = new ui[n];
-	for(ui i = 0;i < n;i ++) pend_global[i] = pstart[i+1]; // the global pend, which does not change
-	ui *pend = new ui[n]; // remove neighbors with core number smaller than k from pend_global
-						// only used in BUo, otherwise the same as pend_global
-
-	ui *adj_next_global = new ui[n]; // represent super-vertices of the out-most graph
-	for(ui i = 0;i < n;i ++) adj_next_global[i] = i;
-	ui *adj_next = new ui[n]; // a subset of adj_next_global, which does not include vertices without edges to other super-vertices
-
-	ui *ids = new ui[n];
-	ui *cstart = new ui[n];
-
-	ui *degree = new ui[n];
-	ui *Q = new ui[n];
-	char *vis = new char[n];
-	memset(vis, 0, sizeof(char)*n);
-
-	if(!output_file.empty()) {
-		printf("Hierarchy tree for eco-decompose-tds is not implemented yet! Currently this only computes the steiner connectivities\n");
-	}
-
-	vector<pair<ui,ui> > eccsizes;
-	if(!eccsizes_file.empty()) {
-		for(ui i = 0;i < n;i ++) if(!vis[i]) {
-			ui Q_n = 1;
-			Q[0] = i; vis[i] = 1;
-			for(ui ii = 0;ii < Q_n;ii ++) {
-				ui u = Q[ii];
-				for(ui j = pstart[u];j < pstart[u+1];j ++) if(!vis[edges[j]]) {
-					Q[Q_n++] = edges[j]; vis[edges[j]] = 1;
-				}
-			}
-			if(Q_n > 1) eccsizes.pb(mp(1, Q_n));
-		}
-		memset(vis, 0, sizeof(char)*n);
-	}
-
-	UnionFind *UF_local = new UnionFind(n);
-	UF_local->init(0);
-	ui *representative_local = new ui[n];
-
-	ui *pend_local = new ui[n];
-	ui *adj_next_local = new ui[n];
-	ui *adj_last_local = new ui[n];
-	ui *sv_next_local = new ui[n];
-	ui *sv_last_local = new ui[n];
-
-	vector<pair<pair<ui,ui>, ui> > vpp;
-	UnionFind *UF_spt = nullptr;
-
-	if(mspt) {
-		printf("Minimum SPT is not implemented yet! But you still should set mspt to be true for memory consideration!\n");
-	}
-	else vpp.reserve(m/2);
-
-	ui *active_ids = new ui[n];
-	ui active_n = n;
-	for(ui i = 0;i < n;i ++) active_ids[i] = i;
-
-	ui *keys = new ui[n];
-	ListLinearHeap *heap = new ListLinearHeap(n, n);
-
-	char *computed = new char[n];
-	memset(computed, 0, sizeof(char)*n);
-
-	for(ui K = 2;active_n;K ++) {
-		get_degrees(K, active_ids, active_n, degree, UF, representative, pend_global, pend, NULL, adj_next_global, adj_next);
-		// print_active_graph(active_ids, active_n, pend, adj_next, UF, representative);
-		// only change adj_next_buf[level+1], pend_local, pend, but not adj_next_buf[level]
-		ui c_n = kECC(K, pend, active_ids, active_n, cstart, ids, degree, Q, vis, computed, pend_local, UF, representative, UF_local, representative_local, adj_next, adj_next_local, adj_last_local, sv_next_local, sv_last_local, keys, heap);
-		assert(cstart[c_n] == active_n);
-		if(!eccsizes_file.empty()) {
-			for(ui i = 0;i < c_n;i ++) if(cstart[i+1] > cstart[i]+1) eccsizes.pb(mp(K, cstart[i+1]-cstart[i]));
-		}
-
-#ifndef NDEBUG
-		//printf("\n");
-		print_keccs(1, K, c_n, cstart, ids);
-#endif
-
-		ui new_active_n = 0;
-		for(ui i = 0;i < active_n;i ++) {
-			ui u = active_ids[i];
-			assert(adj_next[u] == u); assert(adj_next_global[u] == u);
-			for(ui j = pend[u];j < pend_global[u];j ++) if(edges[j] > u) {
-				if(!mspt) vpp.pb(make_pair(make_pair(u, edges[j]), K-1));
-			}
-			pend_global[u] = pend[u];
-			if(pend[u] > pstart[u]) active_ids[new_active_n ++] = active_ids[i];
-		}
-		active_n = new_active_n;
-	}
-
-	if(UF_spt != nullptr) delete UF_spt;
-
-	delete[] keys;
-	delete[] adj_next_local;
-	delete[] adj_last_local;
-	delete[] sv_next_local;
-	delete[] sv_last_local;
-	delete[] representative_local;
-	delete UF_local;
-	delete[] Q;
-	delete[] vis;
-
-	delete[] adj_next_global;
-	delete[] adj_next;
-	delete[] degree;
-
-	delete[] ids;
-	delete[] cstart;
-
-	delete[] computed;
-
-	delete UF;
-	delete[] representative;
-
-	delete[] pend_local;
-	delete[] pend;
-	delete[] pend_global;
-
-	delete heap;
-	delete[] active_ids;
-
-	if(!eccsizes_file.empty()) {
-		sort(eccsizes.begin(), eccsizes.end());
-		printf("*\tWriting ecc_sizes into file: %s\n", eccsizes_file.c_str());
-		FILE *fout = Utility::open_file(eccsizes_file.c_str(), "w");
-		for(ui i = 0;i < eccsizes.size();i ++) fprintf(fout, "%u %u\n", eccsizes[i].first, eccsizes[i].second);
-		fclose(fout);
-	}
-
-	// print_edge_connectivities("eco-tds", vpp, mspt);
-}
-
-void Graph::edge_connectivity_decomposition_BUs(bool mspt, string output_file, string eccsizes_file) {
-//#ifdef NDEBUG
-//	printf("*** eco_decomposition_BUs (Release): %s ***\n", dir.c_str());
-//#else
-//	printf("*** eco_decomposition_BUs (Debug): %s ***\n", dir.c_str());
-//#endif
-	ui *peel_sequence = new ui[n];
-	ui *core = new ui[n];
-	ui max_core = core_decomposition(peel_sequence, core);
-	printf("\tmax_core: %u\n", max_core);
-
-	UnionFind *UF = new UnionFind(n); // represent contracted version of the out-most graph
-	UF->init(n);
-	ui *representative = new ui[n];
-	for(ui i = 0;i < n;i ++) representative[i] = i;
-
-	ui *pend_global = new ui[n];
-	for(ui i = 0;i < n;i ++) pend_global[i] = pstart[i+1]; // the global pend, which does not change
-	ui *pend = new ui[n]; // remove neighbors with core number smaller than k from pend_global
-						// only used in BUo, otherwise the same as pend_global
-
-	ui *adj_next_global = new ui[n]; // represent super-vertices of the out-most graph
-	for(ui i = 0;i < n;i ++) adj_next_global[i] = i;
-	ui *adj_next = new ui[n]; // a subset of adj_next_global, which does not include vertices without edges to other super-vertices
-
-	ui *ids = new ui[n];
-	ui *cstart = new ui[n];
-
-	ui *degree = new ui[n];
-	ui *Q = new ui[n];
-	char *vis = new char[n];
-	memset(vis, 0, sizeof(char)*n);
-
-	UnionFind *UF_local = new UnionFind(n);
-	UF_local->init(0);
-	ui *representative_local = new ui[n];
-
-	ui *pend_local = new ui[n];
-	ui *adj_next_local = new ui[n];
-	ui *adj_last_local = new ui[n];
-	ui *sv_next_local = new ui[n];
-	ui *sv_last_local = new ui[n];
-
-	vector<pair<pair<ui,ui>, ui> > vpp;
-	UnionFind *UF_spt = nullptr;
-
-	if(mspt) {
-		vpp.reserve(n);
-		UF_spt = new UnionFind(n);
-		UF_spt->init(n);
-	}
-	else vpp.reserve(m/2);
-
-	ui *active_ids = new ui[n];
-	ui active_n = n;
-	for(ui i = 0;i < n;i ++) active_ids[i] = i;
-
-	ui *keys = new ui[n];
-	ListLinearHeap *heap = new ListLinearHeap(n, max_core);
-
-	char *computed = new char[n];
-	memset(computed, 0, sizeof(char)*n);
-
-	for(ui K = max_core;K >= 1;K --) {
-		get_degrees(K, active_ids, active_n, degree, UF, representative, pend_global, pend, NULL, adj_next_global, adj_next);
-		// print_active_graph(active_ids, active_n, pend, adj_next, UF, representative);
-		// only change adj_next_buf[level+1], pend_local, pend, but not adj_next_buf[level]
-		ui c_n = kECC(K, pend, active_ids, active_n, cstart, ids, degree, Q, vis, computed, pend_local, UF, representative, UF_local, representative_local, adj_next, adj_next_local, adj_last_local, sv_next_local, sv_last_local, keys, heap);
-		assert(cstart[c_n] == active_n);
-
-#ifndef NDEBUG
-		//printf("\n");
-		print_keccs(1, K, c_n, cstart, ids);
-#endif
-
-		assert(cstart[0] == 0);
-
-		// use pend and adj_next to get the edges
-
-		// assign K to edges
-		for(ui j = cstart[0];j < cstart[c_n];j ++) {
-			ui u = ids[j];
-			ui tu = u;
-			while(true) {
-				for(ui k = pstart[tu];k < pend[tu];k ++) if(edges[k] > tu) {
-					if(!mspt) {
-						vpp.pb(make_pair(make_pair(tu, edges[k]), K));
-#ifndef NDEBUG
-						//printf("computed %u %u %u\n", tu, edges[k], M);
-#endif
-					}
-					else if(UF_spt->UF_find(tu) != UF_spt->UF_find(edges[k])) {
-						UF_spt->UF_union(tu, edges[k]);
-						vpp.pb(make_pair(make_pair(tu, edges[k]), K));
-					}
-				}
-				pstart[tu] = pend[tu];
-
-				if(adj_next[tu] == tu) break;
-				tu = adj_next[tu];
-			}
-		}
-
-		// contract each M-edge connected component into a supervertex
-		for(ui i = 0;i < cstart[c_n];i ++) {
-			ui u = ids[i];
-			ui tu = u;
-			while(adj_next_global[tu] != tu) tu = adj_next_global[tu];
-			adj_last_local[u] = tu;
-		}
-		for(ui i = 0;i < c_n;i ++) {
-			ui u = ids[cstart[i]];
-			representative[UF->UF_find(u)] = u;
-			for(ui j = cstart[i]+1;j < cstart[i+1];j ++) {
-				representative[UF->UF_union(u, ids[j])] = u;
-				//printf("contracted (%u,%u)\n", u, ids[j]);
-				adj_next_global[adj_last_local[u]] = ids[j];
-				adj_last_local[u] = adj_last_local[ids[j]];
-			}
-		}
-
-		ui cnt = 0;
-		for(ui j = 0;j < active_n;j ++) if(representative[UF->UF_find(active_ids[j])] == active_ids[j]) {
-			active_ids[cnt ++] = active_ids[j];
-		}
-		active_n = cnt;
-	}
-
-	if(UF_spt != nullptr) delete UF_spt;
-
-	delete[] keys;
-	delete[] adj_next_local;
-	delete[] adj_last_local;
-	delete[] sv_next_local;
-	delete[] sv_last_local;
-	delete[] representative_local;
-	delete UF_local;
-	delete[] Q;
-	delete[] vis;
-
-	delete[] adj_next_global;
-	delete[] adj_next;
-	delete[] degree;
-
-	delete[] ids;
-	delete[] cstart;
-
-	delete[] computed;
-
-	delete UF;
-	delete[] representative;
-
-	delete[] pend_local;
-	delete[] pend;
-	delete[] pend_global;
-
-	delete heap;
-	delete[] active_ids;
-	delete[] peel_sequence;
-	delete[] core;
-
-	//print_ege_connectivities("eco-bus", vpp, mspt);
-}
-
-void Graph::edge_connectivity_decomposition_BUso(bool mspt, string output_file, string eccsizes_file) {
-//#ifdef NDEBUG
-//	printf("*** eco_decomposition_BUso (Release): %s ***\n", dir.c_str());
-//#else
-//	printf("*** eco_decomposition_BUso (Debug): %s ***\n", dir.c_str());
-//#endif
-	ui *peel_sequence = new ui[n];
-	ui *core = new ui[n];
-	ui max_core = core_decomposition(peel_sequence, core);
-	printf("*\tmax_core: %u\n", max_core);
-
-	ListLinearHeap *heap = new ListLinearHeap(n, max_core);
-
-	// put all neigbors with no smaller core number at the front, followed by other neighbors in decreasing core number order
-	for(ui i = 0;i < n;i ++) {
-		ui pend = pstart[i+1];
-		for(ui j = pstart[i];j < pend;) {
-			if(core[edges[j]] < core[i]) swap(edges[j], edges[-- pend]);
-			else ++ j;
-		}
-		heap->init(0, core[i], nullptr, nullptr);
-		for(ui j = pend;j < pstart[i+1];j ++) heap->insert(edges[j], core[edges[j]]);
-		ui key;
-		for(ui j = pend;j < pstart[i+1];j ++) heap->pop_max(edges[j], key);
-	}
-
-	ui *active_ids = new ui[n];
-	ui active_n = 0, current_pos = n;
-
-	ui *pend_global = new ui[n];
-	ui *pend = new ui[n];
-	ui *pend_local = new ui[n];
-	for(ui i = 0;i < n;i ++) pend_global[i] = pstart[i+1];
-
-	UnionFind *UF = new UnionFind(n);
-	UF->init(n);
-	ui *representative = new ui[n];
-	for(ui i = 0;i < n;i ++) representative[i] = i;
-
-	char *computed = new char[n];
-	memset(computed, 0, sizeof(char)*n);
-
-	ui *ids = new ui[n];
-	ui *cstart = new ui[n];
-
-	ui *degree = new ui[n];
-	ui *adj_next_global = new ui[n];
-	ui *adj_next = new ui[n];
-	ui *Q = new ui[n];
-	char *vis = new char[n];
-	memset(vis, 0, sizeof(char)*n);
-
-	UnionFind *UF_local = new UnionFind(n);
-	UF_local->init(0);
-	ui *representative_local = new ui[n];
-
-	ui *keys = new ui[n];
-	ui *adj_next_local = new ui[n];
-	ui *adj_last_local = new ui[n];
-	ui *sv_next_local = new ui[n];
-	ui *sv_last_local = new ui[n];
-
-	vector<pair<pair<ui,ui>, ui> > vpp;
-	UnionFind *UF_spt = nullptr;
-
-	if(mspt) {
-		vpp.reserve(n);
-		UF_spt = new UnionFind(n);
-		UF_spt->init(n);
-	}
-	else vpp.reserve(m/2);
-
-	for(ui i = 0;i < n;i ++) adj_next_global[i] = i;
-
-	for(ui K = max_core;K >= 1;K --) {
-#ifndef NDEBUG
-		printf("********************\n");
-		printf("processing %u\n", K);
-#endif
-		ui cnt = 0;
-		for(ui j = 0;j < active_n;j ++) if(representative[UF->UF_find(active_ids[j])] == active_ids[j]) {
-			active_ids[cnt ++] = active_ids[j];
-		}
-		active_n = cnt;
-
-		while(current_pos > 0&&core[peel_sequence[current_pos-1]] >= K) {
-			-- current_pos;
-			active_ids[active_n ++] = peel_sequence[current_pos];
-		}
-
-		get_degrees(K, active_ids, active_n, degree, UF, representative, pend_global, pend, core, adj_next_global, adj_next);
-#ifndef NDEBUG
-		print_active_graph(active_ids, active_n, pend, adj_next, UF, representative);
-#endif
-		// only change adj_next_buf[level+1], pend_local, pend, but not adj_next_buf[level]
-		ui c_n = kECC(K, pend, active_ids, active_n, cstart, ids, degree, Q, vis, computed, pend_local, UF, representative, UF_local, representative_local, adj_next, adj_next_local, adj_last_local, sv_next_local, sv_last_local, keys, heap);
-		assert(cstart[c_n] == active_n);
-
-#ifndef NDEBUG
-		//printf("\n");
-		print_keccs(1, K, c_n, cstart, ids);
-#endif
-
-		// use pend and adj_next to get the edges
-
-		// assign K to edges
-		for(ui j = cstart[0];j < cstart[c_n];j ++) {
-			ui u = ids[j];
-			ui tu = u;
-			while(true) {
-				for(ui k = pstart[tu];k < pend[tu];k ++) if(edges[k] > tu) {
-					if(!mspt) {
-						vpp.pb(make_pair(make_pair(tu, edges[k]), K));
-#ifndef NDEBUG
-						//printf("computed %u %u %u\n", tu, edges[k], M);
-#endif
-					}
-					else if(UF_spt->UF_find(tu) != UF_spt->UF_find(edges[k])) {
-						UF_spt->UF_union(tu, edges[k]);
-						vpp.pb(make_pair(make_pair(tu, edges[k]), K));
-					}
-				}
-				pstart[tu] = pend[tu];
-
-				if(adj_next[tu] == tu) break;
-				tu = adj_next[tu];
-			}
-		}
-
-		// contract each M-edge connected component into a supervertex
-		for(ui i = 0;i < cstart[c_n];i ++) {
-			ui u = ids[i];
-			ui tu = u;
-			while(adj_next_global[tu] != tu) tu = adj_next_global[tu];
-			adj_last_local[u] = tu;
-		}
-		for(ui i = 0;i < c_n;i ++) {
-			ui u = ids[cstart[i]];
-			representative[UF->UF_find(u)] = u;
-			for(ui j = cstart[i]+1;j < cstart[i+1];j ++) {
-				representative[UF->UF_union(u, ids[j])] = u;
-				//printf("contracted (%u,%u)\n", u, ids[j]);
-				adj_next_global[adj_last_local[u]] = ids[j];
-				adj_last_local[u] = adj_last_local[ids[j]];
-			}
-		}
-	}
-
-	if(UF_spt != nullptr) delete UF_spt;
-
-	delete[] keys;
-	delete[] adj_next_local;
-	delete[] adj_last_local;
-	delete[] sv_next_local;
-	delete[] sv_last_local;
-	delete[] representative_local;
-	delete UF_local;
-	delete[] Q;
-	delete[] vis;
-
-	delete[] adj_next_global;
-	delete[] adj_next;
-	delete[] degree;
-
-	delete[] ids;
-	delete[] cstart;
-
-	delete[] computed;
-
-	delete UF;
-	delete[] representative;
-
-	delete[] pend_local;
-	delete[] pend;
-	delete[] pend_global;
-
-	delete heap;
-	delete[] active_ids;
-	delete[] peel_sequence;
-	delete[] core;
-
-	for(ui i = 1;i < vpp.size();i ++) if(vpp[i].second > vpp[i-1].second) printf("WA in BUso\n");
-	printf("*\tmax_k: %u\n", vpp[0].second);
-	to_hierarchy_tree(vpp, output_file, eccsizes_file);
-
-	// print_edge_connectivities("eco-buso", vpp, mspt);
-}
-
 void Graph::edge_connectivity_decomposition_DCs(bool mspt, string output_file, string eccsizes_file) {
 //#ifdef NDEBUG
 //	printf("*** eco_decomposition_dcs (Release): %s ***\n", dir.c_str());
@@ -907,100 +409,6 @@ void Graph::edge_connectivity_decomposition_DCs(bool mspt, string output_file, s
 	// print_edge_connectivities("eco-dcs", vpp, mspt);
 }
 
-void Graph::k_edge_connected_component(ui K, string output_file) {
-//#ifdef NDEBUG
-//	printf("*** k_edge_connected_component (Release): %s, %u ***\n", dir.c_str(), K);
-//#else
-//	printf("*** k_edge_connected_component (Debug): %s, %u ***\n", dir.c_str(), K);
-//#endif
-
-	if(K < 2) {
-		printf("K must be at least 2!\n");
-		return ;
-	}
-
-	ui *pend = new ui[n];
-	for(ui i = 0;i < n;i ++) pend[i] = pstart[i+1];
-
-	char *computed = new char[n];
-	memset(computed, 0, sizeof(char)*n);
-
-	ui *degree = new ui[n];
-	ui *Q = new ui[n];
-	ui Q_n = 0;
-
-	// k-core-based pruning
-	for(ui i = 0;i < n;i ++) {
-		degree[i] = pend[i] - pstart[i];
-		if(degree[i] < K) {
-			Q[Q_n ++] = i;
-			computed[i] = 1;
-		}
-	}
-	k_core_prune(K, Q, Q_n, computed, degree, pend);
-
-	ui *ids = new ui[n];
-	ui *cstart = new ui[n+1];
-	ui c_n = 0;
-	cstart[0] = 0;
-
-	Edge **graph_head = new Edge*[n];
-	Edge *graph_edges = new Edge[m];
-	for(ui i = 0;i < n;i ++) graph_head[i] = nullptr;
-
-	ui *sv_next = new ui[n];
-	ui *sv_last = new ui[n];
-
-	char *vis = new char[n];
-	memset(vis, 0, sizeof(char)*n);
-
-	ListLinearHeap *heap = new ListLinearHeap(n, K);
-
-	ui *keys = new ui[n];
-
-	for(ui i = 0;i < n;) {
-		if(computed[i]) {
-			++ i;
-			continue;
-		}
-
-#ifndef NDEBUG
-		for(ui j = 0;j < n;j ++) assert(vis[j] == 0&&graph_head[j] == nullptr);
-#endif
-		construct_pgraph(i, Q, vis, computed, pend, graph_head, graph_edges, sv_next, sv_last) ;
-		ui new_cn = decomposition(i, K, cstart, ids, c_n, Q, keys, vis, graph_head, graph_edges, heap, sv_next, sv_last);
-		//printf("c_n: %u, new_cn: %u\n", c_n, new_cn);
-
-		/*for(ui j = c_n;j < new_cn;j ++) {
-			printf("ids of %u:", j);
-			for(ui k = cstart[j];k < cstart[j+1];k ++) printf(" %u", ids[k]);
-			printf("\n");
-		}*/
-
-		if(new_cn == c_n + 1) {
-			for(ui j = cstart[c_n];j < cstart[c_n+1];j ++) computed[ids[j]] = 1;
-			++ c_n;
-		}
-		else remove_inter_edges(K, c_n, new_cn, cstart, ids, keys, pend, Q, computed, degree); // use array keys for component id
-	}
-
-	if(!output_file.empty()) print_kecc(output_file, K, c_n, cstart, ids);
-
-	delete[] keys;
-	delete heap;
-	delete[] vis;
-	delete[] sv_next;
-	delete[] sv_last;
-	delete[] graph_head;
-	delete[] graph_edges;
-	delete[] cstart;
-	delete[] ids;
-	delete[] Q;
-	delete[] degree;
-	delete[] computed;
-	delete[] pend;
-}
-
 void Graph::k_edge_connected_component_space(ui K, string output_file) {
 //#ifdef NDEBUG
 //	printf("*** k_edge_connected_component_space (Release): %s, %u ***\n", dir.c_str(), K);
@@ -1091,44 +499,6 @@ void Graph::k_edge_connected_component_space(ui K, string output_file) {
 	delete[] Q;
 }
 
-void Graph::core_decomposition(string output_file, string eccsizes_file) {
-	ui *peel_sequence = new ui[n];
-	ui *core = new ui[n];
-	ui max_core = core_decomposition(peel_sequence, core);
-	printf("*\tmax_core: %u\n", max_core);
-
-	UnionFind *uf = new UnionFind(n);
-	uf->init(n);
-
-	vector<pair<pair<ui,ui>, ui> > vpp;
-
-	char *vis = new char[n];
-	memset(vis, 0, sizeof(char)*n);
-	for(ui i = n;i > 0;i --) {
-		ui u = peel_sequence[i-1];
-		for(ui j = pstart[u];j < pstart[u+1];j ++) if(vis[edges[j]]) {
-			ui v = edges[j];
-			ui ru = uf->UF_find(u);
-			ui rv = uf->UF_find(v);
-
-			if(ru != rv) {
-				vpp.pb(make_pair(make_pair(u, v), core[u]));
-				uf->UF_union(ru, rv);
-			}
-		}
-		vis[u] = 1;
-	}
-
-	delete[] peel_sequence;
-	delete[] core;
-	delete uf;
-	delete[] vis;
-
-	for(ui i = 1;i < vpp.size();i ++) if(vpp[i].second > vpp[i-1].second) printf("WA in core_decomposition\n");
-	to_hierarchy_tree(vpp, output_file, eccsizes_file);
-}
-
-
 // private member functions
 
 void Graph::to_hierarchy_tree(vector<pair<pair<ui,ui>, ui> > vpp, string output_file, string eccsizes_file) {
@@ -1195,6 +565,16 @@ void Graph::to_hierarchy_tree(vector<pair<pair<ui,ui>, ui> > vpp, string output_
 	}
 	if(ecc_n > n) printf("WA in to_hierarchy_tree\n");
 
+	bool bipartite = false;
+	ui row_n = n;
+	FILE *fbipartite = fopen((dir + string("/bipartite.txt")).c_str(), "r");
+	if(fbipartite != NULL) {
+		printf("* This is a bipartite graph!\n");
+		bipartite = true;
+		fscanf(fbipartite, "%u", &row_n);
+		fclose(fbipartite);
+	}
+
 	ui *stack = new ui[n];
 	ui stack_n = 0;
 	char *in_stack = new char[n];
@@ -1203,6 +583,8 @@ void Graph::to_hierarchy_tree(vector<pair<pair<ui,ui>, ui> > vpp, string output_
 	for(ui i = 0;i < n;i ++) first_vertex[i] = -1;
 	ui *ecc_size = representative_to_root;
 	memset(ecc_size, 0, sizeof(ui)*n);
+	ui *ecc_size_column = new ui[n];
+	memset(ecc_size_column, 0, sizeof(ui)*n);
 	for(ui i = 0;i < n;i ++) {
 		if(vertex_to_eccnode[i] == -1) {
 			printf("!!! There are isolated vertices in the input graph, please remove them\n");
@@ -1210,13 +592,19 @@ void Graph::to_hierarchy_tree(vector<pair<pair<ui,ui>, ui> > vpp, string output_
 		}
 		ui r = vertex_to_eccnode[i];
 		ui end = n;
-		if(first_vertex[r] != -1) ++ ecc_size[first_vertex[r]];
+		if(first_vertex[r] != -1) {
+			if(i < row_n) ++ ecc_size[first_vertex[r]];
+			else ++ ecc_size_column[first_vertex[r]];
+		}
 		while(first_vertex[r] == -1) {
 			ui tr = r;
 			while(parent[r] != r&&weight[parent[r]] == weight[r]) r = parent[r];
 			first_vertex[tr] = r;
 
-			if(end == n) ++ ecc_size[r];
+			if(end == n) {
+				if(i < row_n) ++ ecc_size[r];
+				else ++ ecc_size_column[r];
+			}
 
 			if(in_stack[r]) break;
 			in_stack[r] = 1;
@@ -1232,9 +620,17 @@ void Graph::to_hierarchy_tree(vector<pair<pair<ui,ui>, ui> > vpp, string output_
 		ui r = parent[u];
 		if(r == u) continue;
 		ecc_size[first_vertex[r]] += ecc_size[u];
+		ecc_size_column[first_vertex[r]] += ecc_size_column[u];
 	}
 
-	if(!eccsizes_file.empty()) {
+	if(!bipartite) {
+		for(ui i = 0;i < n;i ++) if(ecc_size_column[i] > 0) {
+			printf("WA for bipartite\n");
+			break;
+		}
+	}
+
+	if(!eccsizes_file.empty()&&!bipartite) {
 		vector<pair<ui,ui> > vp;
 		vp.reserve(stack_n);
 		for(ui i = 0;i < stack_n;i ++) {
@@ -1246,6 +642,27 @@ void Graph::to_hierarchy_tree(vector<pair<pair<ui,ui>, ui> > vpp, string output_
 		printf("*\tWriting ecc_sizes into file: %s\n", eccsizes_file.c_str());
 		FILE *fout = Utility::open_file(eccsizes_file.c_str(), "w");
 		for(ui i = 0;i < vp.size();i ++) fprintf(fout, "%u %u\n", vp[i].first, vp[i].second);
+		fclose(fout);
+	}
+	if(!eccsizes_file.empty()&&bipartite) {
+		vector<pair<ui,long long> > vp;
+		vp.reserve(stack_n);
+		for(ui i = 0;i < stack_n;i ++) {
+			ui pw = 0;
+			if(parent[stack[i]] != stack[i]) pw = weight[parent[stack[i]]];
+			for(ui j = pw+1;j <= weight[stack[i]];j ++) vp.pb(mp(j, ((long long)ecc_size[stack[i]])*ecc_size_column[stack[i]]));
+		}
+		sort(vp.begin(), vp.end());
+		printf("*\tWriting ecc_sizes into file: %s\n", eccsizes_file.c_str());
+		FILE *fout = Utility::open_file(eccsizes_file.c_str(), "w");
+		long long size = 0;
+		for(ui i = 0;i < vp.size();i ++) {
+			size += vp[i].second;
+			if(i+1 == vp.size()||vp[i].first != vp[i+1].first) {
+				fprintf(fout, "%u %lld\n", vp[i].first, size);
+				size = 0;
+			}
+		}
 		fclose(fout);
 	}
 
@@ -1271,6 +688,7 @@ void Graph::to_hierarchy_tree(vector<pair<pair<ui,ui>, ui> > vpp, string output_
 		fclose(fout);
 	}
 
+	delete[] ecc_size_column;
 	delete[] stack;
 	delete[] first_vertex;
 	delete[] in_stack;

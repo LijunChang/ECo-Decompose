@@ -42,20 +42,10 @@ public:
 
 	void read_graph_binary() ;
 
-	// compute k-edge connected components
-	void k_edge_connected_component(ui K, std::string output_file) ;
 	// compute k-edge connected components in a space-effective manner
 	void k_edge_connected_component_space(ui K, std::string output_file) ;
 	// edge-connectivity-based graph decomposition, divide and conquer
 	void edge_connectivity_decomposition_DCs(bool mspt, std::string output_file, std::string eccsizes_file) ;
-	// edge-connectivity-based graph decomposition, bottom-up (large to small value), core-optimized
-	void edge_connectivity_decomposition_BUso(bool mspt, std::string output_file, std::string eccsizes_file) ;
-	// edge-connectivity-based graph decomposition, bottom-up (large to small value)
-	void edge_connectivity_decomposition_BUs(bool mspt, std::string output_file, std::string eccsizes_file) ;
-	// edge-connectivity-based graph decomposition, top-down (small to large value)
-	void edge_connectivity_decomposition_TDs(bool mspt, std::string output_file, std::string eccsizes_file) ;
-
-	void core_decomposition(std::string output_file, std::string eccsizes_file) ;
 
 private:
 	void to_hierarchy_tree(std::vector<std::pair<std::pair<ui,ui>, ui> > vpp, std::string output_file, std::string eccsizes_file) ;
