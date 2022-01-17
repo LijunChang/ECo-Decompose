@@ -26,13 +26,13 @@ It generates an executable "eco_decompose".
 ## 1. Run kecc-space
 
 ```
-./eco_decompose -g datasets/CA-GrQc/ -a kecc-space -k 10
+./eco_decompose -g datasets/CA-GrQc/ -a kecc-space -k 10 -o result.txt
 ```
 Note that, the fourth parameter is an integer that specifies the value of k.
 
 ## 2. Run eco-decompose-dcs
 
 ```
-./eco_decompose -g datasets/CA-GrQc/ -a eco-decompose-dcs
+./eco_decompose -g datasets/CA-GrQc/ -a eco-decompose-dcs -o result.txt
 ```
 
