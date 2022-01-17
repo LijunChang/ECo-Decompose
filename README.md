@@ -21,15 +21,16 @@ Each line contains multiple numbers representing the neighbours of a vertex (e.g
 ```
 make
 ```
-It generates an executable "eco_decompose"
+It generates an executable "eco_decompose".
 
 ## 1. Run kecc-space
 
 ```
 ./eco_decompose -g datasets/CA-GrQc/ -a kecc-space -k 10
 ```
+Note that, the fourth parameter is an integer that specifies the value of k.
 
-## 2. Run eco-dcs
+## 2. Run eco-decompose-dcs
 
 ```
 ./eco_decompose -g datasets/CA-GrQc/ -a eco-decompose-dcs
