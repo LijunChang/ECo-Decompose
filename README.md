@@ -1,4 +1,8 @@
-This repository implements the algorithms proposed in the paper: A Near-Optimal Approach to Edge Connectivity-Based Hierarchical Graph Decomposition. Proc. VLDB Endow. 15(6), (2022)
+This repository implements the algorithms proposed in the paper: 
+```
+A Near-Optimal Approach to Edge Connectivity-Based Hierarchical Graph Decomposition. Proc. VLDB Endow. 15(6), (2022)
+```
+If you are using our code, please cite our paper.
 
 ## Compile
 
@@ -7,19 +11,20 @@ make
 ```
 It generates an executable "eco_decompose".
 
-## 1. Run kecc-space
+## Run eco-decompose-dcs
+
+```
+./eco_decompose -g datasets/CA-GrQc/ -a eco-decompose-dcs -o result.txt
+```
+The command will compute core decomposition of the CA-GrQc graph with ECo-DC-AA.
+
+## Run kecc-space
 
 ```
 ./eco_decompose -g datasets/CA-GrQc/ -a kecc-space -k 10 -o result.txt
 ```
 Note that, the fourth parameter is an integer that specifies the value of k. The command will compute all 10-edge connected components of the CA-GrQc graph with KECC-AA.
 
-## 2. Run eco-decompose-dcs
-
-```
-./eco_decompose -g datasets/CA-GrQc/ -a eco-decompose-dcs -o result.txt
-```
-The command will compute core decomposition of the CA-GrQc graph with ECo-DC-AA.
 
 ## Graph Datasets
 Each graph is presented by two binary files, b_adj.bin and b_degree.bin (e.g. datasets/CA-GrQc/b_adj.bin and datasets/CA-GrQc/b_degree.bin).
