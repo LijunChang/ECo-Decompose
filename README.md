@@ -1,9 +1,9 @@
-This repository implements algorithms proposed in our VLDB 2022 paper. If you are using the code, please cite our paper.
-```
+This repository implements edge connectivity-based hierarchical graph decomposition algorithms proposed in our VLDB 2022 paper. If you are using the code, please cite our paper.
+<pre>
 Lijun Chang and Zhiyi Wang.
-A Near-Optimal Approach to Edge Connectivity-Based Hierarchical Graph Decomposition.
+[pdf/vldb22.pdf](A Near-Optimal Approach to Edge Connectivity-Based Hierarchical Graph Decomposition.)
 Proc. VLDB Endow. 15(6), (2022)
-```
+</pre>
 
 ## Compile the code
 
