@@ -31,7 +31,7 @@ $ ./eco_decompose -g datasets/CA-GrQc/ -a kecc-space -k 10 -o result.txt
 ```
 
 ## Data format
-Each graph is represented by two binary files, b_adj.bin and b_degree.bin (e.g. datasets/CA-GrQc/b_adj.bin and datasets/CA-GrQc/b_degree.bin). More details of the data format can be found in [https://lijunchang.github.io/Cohesive_subgraph_book/datasets]
+Each graph is represented by two binary files, b_adj.bin and b_degree.bin (e.g. datasets/CA-GrQc/b_adj.bin and datasets/CA-GrQc/b_degree.bin). More details of the data format can be found in [https://lijunchang.github.io/Cohesive_subgraph_book/datasets](https://lijunchang.github.io/Cohesive_subgraph_book/datasets)
 
 
 [//]: # "In the b_degree.bin, the first line is a single number checking whether the size of unsigned int in bytes of the machine is consistent with the binary files."
