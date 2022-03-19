@@ -1,7 +1,7 @@
 This repository implements edge connectivity-based hierarchical graph decomposition algorithms proposed in our VLDB 2022 paper. If you are using the code, please cite our paper.
 <pre>
 Lijun Chang and Zhiyi Wang.
-<a href="pdf/vldb22.pdf">A Near-Optimal Approach to Edge Connectivity-Based Hierarchical Graph Decomposition.</a>
+<a href="lijunchang.github.io/pdf/2022-ecd-tr.pdf">A Near-Optimal Approach to Edge Connectivity-Based Hierarchical Graph Decomposition.</a>
 Proc. VLDB Endow. 15(6), (2022)
 </pre>
 
@@ -31,7 +31,7 @@ $ ./eco_decompose -g datasets/CA-GrQc/ -a kecc-space -k 10 -o result.txt
 ```
 
 ## Data format
-Each graph is represented by two binary files, b_adj.bin and b_degree.bin (e.g. datasets/CA-GrQc/b_adj.bin and datasets/CA-GrQc/b_degree.bin). More details of the data format can be found in [https://github.com/LijunChang/Cohesive_subgraph_book/tree/master/datasets](https://github.com/LijunChang/Cohesive_subgraph_book/tree/master/datasets)
+Each graph is represented by two binary files, b_adj.bin and b_degree.bin (e.g. datasets/CA-GrQc/b_adj.bin and datasets/CA-GrQc/b_degree.bin). More details of the data format can be found in [https://lijunchang.github.io/Cohesive_subgraph_book/datasets]
 
 
 [//]: # "In the b_degree.bin, the first line is a single number checking whether the size of unsigned int in bytes of the machine is consistent with the binary files."
