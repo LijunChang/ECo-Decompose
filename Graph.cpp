@@ -31,12 +31,171 @@ Graph::~Graph() {
 	}
 }
 
+void Graph::edge_connectivity_decomposition_BUso(bool mspt, string output_file, string eccsizes_file) {
+	ui *peel_sequence = new ui[n];
+	ui *core = new ui[n];
+	ui max_core = core_decomposition(peel_sequence, core);
+	printf("*\tmax_core: %u\n", max_core);
+
+	ListLinearHeap *heap = new ListLinearHeap(n, max_core);
+
+	// put all neigbors with no smaller core number at the front, followed by other neighbors in decreasing core number order
+	for(ui i = 0;i < n;i ++) {
+		ui pend = pstart[i+1];
+		for(ui j = pstart[i];j < pend;) {
+			if(core[edges[j]] < core[i]) swap(edges[j], edges[-- pend]);
+			else ++ j;
+		}
+		heap->init(0, core[i], nullptr, nullptr);
+		for(ui j = pend;j < pstart[i+1];j ++) heap->insert(edges[j], core[edges[j]]);
+		ui key;
+		for(ui j = pend;j < pstart[i+1];j ++) heap->pop_max(edges[j], key);
+	}
+
+	ui *active_ids = new ui[n];
+	ui active_n = 0, current_pos = n;
+
+	ui *pend_global = new ui[n];
+	ui *pend = new ui[n];
+	ui *pend_local = new ui[n];
+	for(ui i = 0;i < n;i ++) pend_global[i] = pstart[i+1];
+
+	UnionFind *UF = new UnionFind(n);
+	UF->init(n);
+	ui *representative = new ui[n];
+	for(ui i = 0;i < n;i ++) representative[i] = i;
+
+	char *computed = new char[n];
+	memset(computed, 0, sizeof(char)*n);
+
+	ui *ids = new ui[n];
+	ui *cstart = new ui[n];
+
+	ui *degree = new ui[n];
+	ui *adj_next_global = new ui[n];
+	ui *adj_next = new ui[n];
+	ui *Q = new ui[n];
+	char *vis = new char[n];
+	memset(vis, 0, sizeof(char)*n);
+
+	UnionFind *UF_local = new UnionFind(n);
+	UF_local->init(0);
+	ui *representative_local = new ui[n];
+
+	ui *keys = new ui[n];
+	ui *adj_next_local = new ui[n];
+	ui *adj_last_local = new ui[n];
+	ui *sv_next_local = new ui[n];
+	ui *sv_last_local = new ui[n];
+
+	vector<pair<pair<ui,ui>, ui> > vpp;
+	UnionFind *UF_spt = nullptr;
+
+	if(mspt) {
+		vpp.reserve(n);
+		UF_spt = new UnionFind(n);
+		UF_spt->init(n);
+	}
+	else vpp.reserve(m/2);
+
+	for(ui i = 0;i < n;i ++) adj_next_global[i] = i;
+
+	for(ui K = max_core;K >= 1;K --) {
+		ui cnt = 0;
+		for(ui j = 0;j < active_n;j ++) if(representative[UF->UF_find(active_ids[j])] == active_ids[j]) {
+			active_ids[cnt ++] = active_ids[j];
+		}
+		active_n = cnt;
+
+		while(current_pos > 0&&core[peel_sequence[current_pos-1]] >= K) {
+			-- current_pos;
+			active_ids[active_n ++] = peel_sequence[current_pos];
+		}
+
+		get_degrees(K, active_ids, active_n, degree, UF, representative, pend_global, pend, core, adj_next_global, adj_next);
+
+		// only change adj_next_buf[level+1], pend_local, pend, but not adj_next_buf[level]
+		ui c_n = kECC(K, pend, active_ids, active_n, cstart, ids, degree, Q, vis, computed, pend_local, UF, representative, UF_local, representative_local, adj_next, adj_next_local, adj_last_local, sv_next_local, sv_last_local, keys, heap);
+		assert(cstart[c_n] == active_n);
+
+		// assign K to edges
+		for(ui j = cstart[0];j < cstart[c_n];j ++) {
+			ui u = ids[j];
+			ui tu = u;
+			while(true) {
+				for(ui k = pstart[tu];k < pend[tu];k ++) if(edges[k] > tu) {
+					if(!mspt) vpp.pb(make_pair(make_pair(tu, edges[k]), K));
+					else if(UF_spt->UF_find(tu) != UF_spt->UF_find(edges[k])) {
+						UF_spt->UF_union(tu, edges[k]);
+						vpp.pb(make_pair(make_pair(tu, edges[k]), K));
+					}
+				}
+				pstart[tu] = pend[tu];
+
+				if(adj_next[tu] == tu) break;
+				tu = adj_next[tu];
+			}
+		}
+
+		// contract each M-edge connected component into a supervertex
+		for(ui i = 0;i < cstart[c_n];i ++) {
+			ui u = ids[i];
+			ui tu = u;
+			while(adj_next_global[tu] != tu) tu = adj_next_global[tu];
+			adj_last_local[u] = tu;
+		}
+		for(ui i = 0;i < c_n;i ++) {
+			ui u = ids[cstart[i]];
+			representative[UF->UF_find(u)] = u;
+			for(ui j = cstart[i]+1;j < cstart[i+1];j ++) {
+				representative[UF->UF_union(u, ids[j])] = u;
+				adj_next_global[adj_last_local[u]] = ids[j];
+				adj_last_local[u] = adj_last_local[ids[j]];
+			}
+		}
+	}
+
+	if(UF_spt != nullptr) delete UF_spt;
+
+	delete[] keys;
+	delete[] adj_next_local;
+	delete[] adj_last_local;
+	delete[] sv_next_local;
+	delete[] sv_last_local;
+	delete[] representative_local;
+	delete UF_local;
+	delete[] Q;
+	delete[] vis;
+
+	delete[] adj_next_global;
+	delete[] adj_next;
+	delete[] degree;
+
+	delete[] ids;
+	delete[] cstart;
+
+	delete[] computed;
+
+	delete UF;
+	delete[] representative;
+
+	delete[] pend_local;
+	delete[] pend;
+	delete[] pend_global;
+
+	delete heap;
+	delete[] active_ids;
+	delete[] peel_sequence;
+	delete[] core;
+
+	for(ui i = 1;i < vpp.size();i ++) if(vpp[i].second > vpp[i-1].second) printf("WA in BUso\n");
+	printf("*\tmax_k: %u\n", vpp[0].second);
+	to_hierarchy_tree(vpp, output_file, eccsizes_file);
+
+	// print_edge_connectivities("eco-buso", vpp, mspt);
+}
+
 void Graph::edge_connectivity_decomposition_DCs(bool mspt, string output_file, string eccsizes_file) {
-//#ifdef NDEBUG
-//	printf("*** eco_decomposition_dcs (Release): %s ***\n", dir.c_str());
-//#else
-//	printf("*** eco_decomposition_dcs (Debug): %s ***\n", dir.c_str());
-//#endif
 	if(!mspt) printf("!!! For memory consideration, mspt should be set to true\n");
 
 	ui *Q = new ui[n];
@@ -128,11 +287,6 @@ void Graph::edge_connectivity_decomposition_DCs(bool mspt, string output_file, s
 		int level = working_stack.top().level;
 		ui cid = active_component[s];
 
-#ifndef NDEBUG
-		//printf("*********************************************************\n");
-		//printf("processing s: %u, cid: %u, parent_cid: %u, L: %u, H: %u, level: %d\n", s, cid, parent_cid, L, H, level);
-#endif
-
 		if(level >= max_level) {
 			active_component[s] = parent_cid;
 			working_stack.pop();
@@ -154,57 +308,10 @@ void Graph::edge_connectivity_decomposition_DCs(bool mspt, string output_file, s
 		// set adj_next_buf[level] and pend
 		ui active_n = get_active_ids(s, active_component, active_ids, degree, vis, pend, pend_global, UF, representative, adj_next_buf[level], adj_next_buf[level+1]);
 
-#ifndef NDEBUG
-		//print_active_graph(active_ids, active_n, pend, adj_next_buf[level], UF, representative);
-#endif
 		// only change adj_next_buf[level+1], pend_local, pend, but not adj_next_buf[level]
 		ui c_n = kECC(M, pend, active_ids, active_n, cstart, ids, degree, Q, vis, computed, pend_local, UF, representative, UF_local, representative_local, adj_next_buf[level+1], adj_next_local, adj_last_local, sv_next_local, sv_last_local, keys, heap);
 		assert(cstart[c_n] == active_n);
 
-#ifndef NDEBUG
-		//printf("\n");
-		//print_keccs(1, M, c_n, cstart, ids);
-#endif
-
-#ifndef NDEBUG
-		//test the result of kECC
-		for(ui i = 0;i < c_n;i ++) {
-			assert(representative[UF->UF_find(ids[cstart[i]])] == ids[cstart[i]]);
-			for(ui j = cstart[i];j < cstart[i+1];j ++) {
-				assert(active_component[ids[j]] == cid);
-				//printf("UF_local[%u]: %u, representative: %u\n", ids[j], UF_local->UF_find(ids[j]), representative_local[UF_local->UF_find(ids[j])]);
-				assert(representative_local[UF_local->UF_find(ids[j])] == ids[cstart[i]]);
-			}
-		}
-		for(ui i = 0;i < cstart[c_n];i ++) for(ui j = i+1;j < cstart[c_n];j ++) assert(ids[i] != ids[j]);
-
-		//test the unmodificatiaon of the subgraph
-		for(ui i = 0;i < active_n;i ++) {
-			ui u = active_ids[i];
-			ui tu = u;
-			while(true) {
-				assert(representative[UF->UF_find(tu)] == u);
-				for(ui j = pstart[tu];j < pend[tu];j ++) assert(representative[UF->UF_find(edges[j])] != u);
-
-				if(adj_next_buf[level][tu] == tu) break;
-				else tu = adj_next_buf[level][tu];
-			}
-		}
-#endif
-
-#ifndef NDEBUG
-		for(ui j = cstart[0];j < cstart[c_n];j ++) {
-			ui u = ids[j];
-			ui tu = u, ru = UF_local->UF_find(u);
-			while(true) {
-				for(ui k = pstart[tu];k < pend[tu];k ++) assert(UF_local->UF_find(edges[k]) == ru);
-				if(adj_next_buf[level+1][tu] == tu) break;
-				tu = adj_next_buf[level+1][tu];
-			}
-		}
-#endif
-
-		//printf("%d %d %d\n", L, M, H);
 		if(M == H) {
 			if(M > max_k) max_k = M;
 			// use pend and adj_next_buf[level+1] to get the edges
@@ -216,12 +323,7 @@ void Graph::edge_connectivity_decomposition_DCs(bool mspt, string output_file, s
 				ui tu = u;
 				while(true) {
 					for(ui k = pstart[tu];k < pend[tu];k ++) if(edges[k] > tu) {
-						if(!mspt) {
-							vpp.pb(make_pair(make_pair(tu, edges[k]), M));
-#ifndef NDEBUG
-							//printf("computed %u %u %u\n", tu, edges[k], M);
-#endif
-						}
+						if(!mspt) vpp.pb(make_pair(make_pair(tu, edges[k]), M));
 						else if(UF_spt->UF_find(tu) != UF_spt->UF_find(edges[k])) {
 							UF_spt->UF_union(tu, edges[k]);
 							vpp.pb(make_pair(make_pair(tu, edges[k]), M));
@@ -241,23 +343,8 @@ void Graph::edge_connectivity_decomposition_DCs(bool mspt, string output_file, s
 				for(ui j = cstart[i]+1;j < cstart[i+1];j ++) {
 					representative[UF->UF_union(u, ids[j])] = u;
 					contractions.pb(make_pair(u, ids[j]));
-					//printf("inserted (%u,%u) to contractions\n", u, ids[j]);
 				}
 			}
-
-#ifndef NDEBUG
-			for(ui i = 0;i < c_n;i ++) {
-				ui u = ids[cstart[i]];
-				for(ui j = 0;j < n;j ++) if(representative[UF->UF_find(j)] == u) {
-					for(ui k = pstart[j];k < pend_global[j];k ++) {
-						//if(representative[UF->UF_find(edges[k])] == u) {
-						//	printf("conflict %u, %u\n", j, edges[k]);
-						//}
-						assert(representative[UF->UF_find(edges[k])] != u);
-					}
-				}
-			}
-#endif
 
 			if(L == M) {
 				// assign M-1 to edges
@@ -270,19 +357,11 @@ void Graph::edge_connectivity_decomposition_DCs(bool mspt, string output_file, s
 						for(ui &start = pstart[tu];start < pend_global[tu];start ++) {
 							assert(UF->UF_find(edges[start]) != ru);
 							if(active_component[representative[UF->UF_find(edges[start])]] != cid) {
-#ifndef NDEBUG
-								for(ui j = start;j < pend_global[tu];j ++) {
-									assert(active_component[representative[UF->UF_find(edges[j])]] != cid);
-								}
-#endif
 								break;
 							}
 							if(edges[start] > tu) {
 								if(!mspt) {
 									vpp.pb(make_pair(make_pair(tu, edges[start]), M-1));
-#ifndef NDEBUG
-									//printf("computed %u %u %u\n", tu, edges[start], M-1);
-#endif
 								}
 								else if(UF_spt->UF_find(tu) != UF_spt->UF_find(edges[start])) {
 									UF_spt->UF_union(tu, edges[start]);
@@ -304,20 +383,8 @@ void Graph::edge_connectivity_decomposition_DCs(bool mspt, string output_file, s
 					ui v = ids[cstart[i]];
 					representative[UF->UF_union(u, v)] = u;
 					contractions.pb(make_pair(u, v));
-					//printf("inserted (%u,%u) to contractions\n", u, v);
 				}
 
-#ifndef NDEBUG
-				for(ui i = 0;i < 1;i ++) {
-					ui u = ids[cstart[i]];
-					for(ui j = 0;j < n;j ++) if(representative[UF->UF_find(j)] == u) {
-						for(ui k = pstart[j];k < pend_global[j];k ++) {
-							assert(active_component[representative[UF->UF_find(edges[k])]] != cid);
-							assert(representative[UF->UF_find(edges[k])] != u);
-						}
-					}
-				}
-#endif
 				active_component[u] = parent_cid;
 			}
 			else {
@@ -353,14 +420,12 @@ void Graph::edge_connectivity_decomposition_DCs(bool mspt, string output_file, s
 				node.vertex = u; node.parent_cid = cid; node.L = M+1; node.H = H; node.level = level+1;
 				if(cstart[i+1] == cstart[i]+1) node.level = max_level;
 				working_stack.push(node);
-				//printf("\tpush %d %d\n", M+1, H);
 			}
 
 			if(pos != c_n) {
 				Stack_node node;
 				node.vertex = ids[cstart[pos]]; node.parent_cid = cid; node.L = M+1; node.H = H; node.level = level+1;
 				if(cstart[pos+1] == cstart[pos]+1) node.level = max_level;
-				//printf("\tpush %d %d\n", M+1, H);
 				working_stack.push(node);
 			}
 
@@ -733,12 +798,6 @@ void Graph::get_degrees(ui K, const ui *active_ids, ui active_n, ui *degree, Uni
 }
 
 void Graph::contract_graph(const ui pos, ui *adj_next, const vector<pair<ui,ui> > &contractions, ui *adj_last_local) {
-#ifndef NDEBUG
-	//printf("contract pairs");
-	//for(ui i = pos;i < contractions.size();i ++) printf(" (%u,%u)", contractions[i].first, contractions[i].second);
-	//printf("\n");
-#endif
-
 	for(ui i = pos;i < contractions.size();i ++) adj_last_local[contractions[i].first] = adj_last_local[contractions[i].second] = n;
 
 	for(ui i = pos;i < contractions.size();i ++) {
@@ -867,25 +926,12 @@ ui Graph::get_active_ids(const ui s, const ui *active_component, ui *active_ids,
 		while(true) {
 			assert(representative[UF->UF_find(tu)] == u);
 			pend[tu] = pend_global[tu];
-			//if(s == 9) {
-			//	printf("pstart[%u]: %u, neighbors:", tu, pstart[tu]);
-			//	for(ui j = pstart[tu];j < pend_global[tu];j ++) printf(" %u", edges[j]);
-			//	printf("\n");
-			//}
 			for(ui j = pstart[tu];j < pend_global[tu];j ++) {
 				ui rv = representative[UF->UF_find(edges[j])];
 				assert(rv != u);
-				//if(rv == u) {
-				//	swap(edges[j], edges[pstart[tu] ++]);
-				//	continue;
-				//}
 
 				if(active_component[rv] != cid) {
 					pend[tu] = j;
-#ifndef NDEBUG
-					// may not correct
-					for(ui k = j;k < pend_global[tu];k ++) assert(active_component[representative[UF->UF_find(edges[k])]] != cid);
-#endif
 					break;
 				}
 

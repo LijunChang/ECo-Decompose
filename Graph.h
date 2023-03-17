@@ -46,6 +46,8 @@ public:
 	void k_edge_connected_component_space(ui K, std::string output_file) ;
 	// edge-connectivity-based graph decomposition, divide and conquer
 	void edge_connectivity_decomposition_DCs(bool mspt, std::string output_file, std::string eccsizes_file) ;
+	// edge-connectivity-based graph decomposition, bottom-up (large to small value), core-optimized
+	void edge_connectivity_decomposition_BUso(bool mspt, std::string output_file, std::string eccsizes_file) ;
 
 private:
 	void to_hierarchy_tree(std::vector<std::pair<std::pair<ui,ui>, ui> > vpp, std::string output_file, std::string eccsizes_file) ;

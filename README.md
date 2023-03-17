@@ -25,6 +25,11 @@ An example of computing edge connectivity-base hierarchical graph decomposition 
 $ ./eco_decompose -g datasets/CA-GrQc/ -a eco-decompose-dcs -o result.txt
 ```
 
+An example of computing edge connectivity-base hierarchical graph decomposition for the dataset CA-GrQc by the BU*-AA algorithm is as follows
+```sh
+$ ./eco_decompose -g datasets/CA-GrQc/ -a eco-decompose-buso -o result.txt
+```
+
 An example of computing 10-edge connected components for the dataset CA-GrQc by the algorithm KECC-AA is as follows
 ```sh
 $ ./eco_decompose -g datasets/CA-GrQc/ -a kecc-space -k 10 -o result.txt

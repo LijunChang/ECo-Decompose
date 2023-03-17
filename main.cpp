@@ -30,7 +30,7 @@ int main(int argc, char *argv[]) {
 	OptionParser op("Allowed options");
 	auto help_option = op.add<Switch>("h", "help", "\'produce help message\'");
 	auto graph_option = op.add<Value<string>>("g", "graph", "\'path to input graph file\'");
-	auto alg_option = op.add<Value<string>>("a", "alg", "\'algorithm name\' (kecc-space | eco-decompose-dcs)");
+	auto alg_option = op.add<Value<string>>("a", "alg", "\'algorithm name\' (kecc-space | eco-decompose-dcs | eco-decompose-buso)");
 	auto k_option = op.add<Value<int>>("k", "k", "\'the value of k for kecc-space\'");
 	auto output_option = op.add<Value<string>>("o", "output", "\'write the result into file\'");
 	auto eccsizes_option = op.add<Value<string>>("s", "eccsizes", "\'write the ecc_sizes into file\'");
@@ -80,6 +80,7 @@ int main(int argc, char *argv[]) {
 	Timer timer;
 	if(strcmp(alg.c_str(), "kecc-space") == 0) graph->k_edge_connected_component_space((ui)k, output_file);
 	else if(strcmp(alg.c_str(), "eco-decompose-dcs") == 0) graph->edge_connectivity_decomposition_DCs(true, output_file, eccsizes_file);
+	else if(strcmp(alg.c_str(), "eco-decompose-buso") == 0) graph->edge_connectivity_decomposition_BUso(true, output_file, eccsizes_file);
 	else {
 		printf("!!! The algorithm name is not reconganized! Exit!!!\n");
 		//print_usage();
